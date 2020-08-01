@@ -1,0 +1,4 @@
+*.pgm
+render-frames
+verilator-generated/*
+
