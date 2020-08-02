@@ -18,6 +18,46 @@ module gpu2d(
     output logic clkn
 );
 
+logic [9:0] vram1_addr_a;
+logic [7:0] vram1_q_a;
+
+logic [9:0] vram2_addr_a;
+logic [7:0] vram2_q_a;
+    
+logic vram1_we_b;
+logic [9:0] vram1_addr_b;
+logic [7:0] vram1_d_b;
+
+logic vram2_we_b;
+logic [9:0] vram2_addr_b;
+logic [7:0] vram2_d_b;
+
+vram vram1(
+    .clk_a(pixel_clock),
+    .we_a(1'b0),
+    .addr_a(vram1_addr_a),
+    .d_a(8'b0),
+    .q_a(vram1_q_a),
+    
+    .clk_b(pixel_clock),
+    .we_b(vram1_we_b),
+    .addr_b(vram1_addr_b),
+    .d_b(vram1_d_b)
+);
+
+vram vram2(
+   .clk_a(pixel_clock),
+    .we_a(1'b0),
+    .addr_a(vram2_addr_a),
+    .d_a(8'b0),
+    .q_a(vram2_q_a),
+    
+    .clk_b(pixel_clock),
+    .we_b(vram2_we_b),
+    .addr_b(vram2_addr_b),
+    .d_b(vram2_d_b)
+);
+
 logic pixel_clock;
 logic tmds_clock;
 
@@ -48,12 +88,29 @@ video #(
     .vsync(vsync),
     .hsync(hsync),
     
+     .vram_even_addr(vram1_addr_a),
+     .vram_even_q(vram1_q_a),
+     
+     .vram_odd_addr(vram2_addr_a),
+     .vram_odd_q(vram2_q_a),
+     
     .draw_area(draw_area),
     .red(red),
     .green(green),
     .blue(blue)
 );
 
+renderer render(
+    .clk(pixel_clock),
+
+    .vram_even_we(vram1_we_b),
+    .vram_even_addr(vram1_addr_b),
+    .vram_even_d(vram1_d_b),
+    
+    .vram_odd_we(vram2_we_b),
+    .vram_odd_addr(vram2_addr_b),
+    .vram_odd_d(vram2_d_b)
+);
 
 logic [9:0] tmds_red, tmds_green, tmds_blue;
 logic [9:0] tmds_shift_red, tmds_shift_green, tmds_shift_blue;

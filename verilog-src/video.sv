@@ -29,8 +29,15 @@ module video #(
     
     parameter V_COUNTER_WIDTH = $clog2(V_TOTAL)
 )(
-   input logic clk,
+    input logic clk,
     
+    /* VRAM containing even and odd-numbered scanlines. */
+    output [9:0] vram_even_addr,
+    input [7:0] vram_even_q,
+         
+    output [9:0] vram_odd_addr,
+    input [7:0] vram_odd_q,
+     
     output logic vsync,
     output logic hsync,
     output logic draw_area,
@@ -43,7 +50,7 @@ module video #(
 logic [(H_COUNTER_WIDTH - 1):0] counter_h;
 logic [(V_COUNTER_WIDTH - 1):0] counter_v;
 
-logic [10:0] licznik;
+logic scanline_parity;
 
 always_ff @(posedge clk) begin
     draw_area <= (counter_h < H_PIXELS && counter_v < V_PIXELS);
@@ -52,27 +59,35 @@ always_ff @(posedge clk) begin
         counter_h <= 0;
         if (counter_v == (V_TOTAL - 1)) begin
             counter_v <= 0;
+                scanline_parity <= 0;
         end
         else begin
             counter_v <= counter_v + 1;
+                scanline_parity <= !scanline_parity;
         end
     end
     else begin
         counter_h <= counter_h + 1;
     end
-	 
-	 if (counter_h == 0 && counter_v == 0) licznik <= licznik + 75;
         
     hsync <= (counter_h >= (H_PIXELS + H_FRONT_PORCH) && counter_h < (H_PIXELS + H_FRONT_PORCH + H_SYNC)); 
     vsync <= (counter_v >= (V_PIXELS + V_FRONT_PORCH) && counter_v < (V_PIXELS + V_FRONT_PORCH + V_SYNC)); 
+     
+     vram_even_addr <= counter_h;
+     vram_odd_addr <= counter_h;
 end
 
 always_comb begin
     if (draw_area) begin
         /* @FIXME(Piotr Grabowski, 2020-07-31): lint_off for testing. */
         /* verilator lint_off WIDTH */
-        red = counter_h / 8;
-        green = counter_h / 4 + licznik;
+          if (scanline_parity) begin
+                red = vram_odd_q;
+          end
+          else begin
+                red = vram_even_q;
+          end
+        green = counter_h / 4;
         blue = counter_h | counter_v;
         /* verilator lint_on WIDTH */
     end
