@@ -59,7 +59,7 @@ always_ff @(posedge clk) begin
         counter_h <= 0;
         if (counter_v == (V_TOTAL - 1)) begin
             counter_v <= 0;
-                scanline_parity <= 0;
+            scanline_parity <= 0;
         end
         else begin
             counter_v <= counter_v + 1;
@@ -73,22 +73,22 @@ always_ff @(posedge clk) begin
     hsync <= (counter_h >= (H_PIXELS + H_FRONT_PORCH) && counter_h < (H_PIXELS + H_FRONT_PORCH + H_SYNC)); 
     vsync <= (counter_v >= (V_PIXELS + V_FRONT_PORCH) && counter_v < (V_PIXELS + V_FRONT_PORCH + V_SYNC)); 
      
-     vram_even_addr <= counter_h;
-     vram_odd_addr <= counter_h;
+    vram_even_addr <= counter_h;
+    vram_odd_addr <= counter_h;
 end
 
 always_comb begin
     if (draw_area) begin
         /* @FIXME(Piotr Grabowski, 2020-07-31): lint_off for testing. */
         /* verilator lint_off WIDTH */
-          if (scanline_parity) begin
-                red = vram_odd_q;
-          end
-          else begin
-                red = vram_even_q;
-          end
-        green = counter_h / 4;
-        blue = counter_h | counter_v;
+        if (scanline_parity) begin
+            red = vram_odd_q;
+        end
+        else begin
+            red = vram_even_q;
+        end
+        green = red;
+        blue = red;
         /* verilator lint_on WIDTH */
     end
     else begin

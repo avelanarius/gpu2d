@@ -39,7 +39,7 @@ vram vram1(
     .d_a(8'b0),
     .q_a(vram1_q_a),
     
-    .clk_b(pixel_clock),
+    .clk_b(renderer_clock),
     .we_b(vram1_we_b),
     .addr_b(vram1_addr_b),
     .d_b(vram1_d_b)
@@ -52,7 +52,7 @@ vram vram2(
     .d_a(8'b0),
     .q_a(vram2_q_a),
     
-    .clk_b(pixel_clock),
+    .clk_b(renderer_clock),
     .we_b(vram2_we_b),
     .addr_b(vram2_addr_b),
     .d_b(vram2_d_b)
@@ -60,12 +60,14 @@ vram vram2(
 
 logic pixel_clock;
 logic tmds_clock;
+logic renderer_clock;
 
 /* tmds_clock is expected to clocked with 10x frequency of pixel_clock. */
 pll pll(
     .inclk0(clk),
     .c0(tmds_clock),
-    .c1(pixel_clock)
+    .c1(pixel_clock),
+    .c2(renderer_clock)
 );
 
 logic hsync, vsync, draw_area;
@@ -88,11 +90,11 @@ video #(
     .vsync(vsync),
     .hsync(hsync),
     
-     .vram_even_addr(vram1_addr_a),
-     .vram_even_q(vram1_q_a),
+    .vram_even_addr(vram1_addr_a),
+    .vram_even_q(vram1_q_a),
      
-     .vram_odd_addr(vram2_addr_a),
-     .vram_odd_q(vram2_q_a),
+    .vram_odd_addr(vram2_addr_a),
+    .vram_odd_q(vram2_q_a),
      
     .draw_area(draw_area),
     .red(red),
@@ -101,7 +103,8 @@ video #(
 );
 
 renderer render(
-    .clk(pixel_clock),
+    .clk(renderer_clock),
+    .pixel_clk(pixel_clock),
 
     .vram_even_we(vram1_we_b),
     .vram_even_addr(vram1_addr_b),
