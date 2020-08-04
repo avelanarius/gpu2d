@@ -32,6 +32,9 @@ logic vram2_we_b;
 logic [9:0] vram2_addr_b;
 logic [7:0] vram2_d_b;
 
+logic [9:0] cbram_addr_a;
+logic [7:0] cbram_q_a;
+
 vram vram1(
     .clk_a(pixel_clock),
     .we_a(1'b0),
@@ -46,7 +49,7 @@ vram vram1(
 );
 
 vram vram2(
-   .clk_a(pixel_clock),
+    .clk_a(pixel_clock),
     .we_a(1'b0),
     .addr_a(vram2_addr_a),
     .d_a(8'b0),
@@ -56,6 +59,17 @@ vram vram2(
     .we_b(vram2_we_b),
     .addr_b(vram2_addr_b),
     .d_b(vram2_d_b)
+);
+
+cbram cb(
+   .clk_a(renderer_clock),
+   .we_a(1'b0),
+   .addr_a(cbram_addr_a),
+   .d_a(8'b0),
+   .q_a(cbram_q_a),
+   
+   .clk_b(renderer_clock),
+   .we_b(1'b0)
 );
 
 logic pixel_clock;
@@ -106,6 +120,9 @@ renderer render(
     .clk(renderer_clock),
     .pixel_clk(pixel_clock),
 
+	 .cbram_addr(cbram_addr_a),
+	 .cbram_q(cbram_q_a),
+	 
     .vram_even_we(vram1_we_b),
     .vram_even_addr(vram1_addr_b),
     .vram_even_d(vram1_d_b),

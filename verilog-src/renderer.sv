@@ -27,8 +27,11 @@ module renderer #(
     parameter V_COUNTER_WIDTH = $clog2(V_TOTAL)
 )(
     input logic clk,
-     input logic pixel_clk,
+    input logic pixel_clk,
     
+	output [9:0] cbram_addr,
+    input [7:0] cbram_q,
+	 
     output vram_even_we,
     output [9:0] vram_even_addr,
     output [7:0] vram_even_d,
@@ -64,15 +67,28 @@ always_ff @(posedge pixel_clk) begin
     end
 end
 
-typedef enum {HALT, PIXEL} e_cycle_type;
+typedef enum {HALT, FETCH_X, FETCH_Y, POST_FETCH, PIXEL} e_cycle_type;
 
 e_cycle_type current_cycle;
 logic [(V_COUNTER_WIDTH - 1):0] current_v;
+
+logic [(V_COUNTER_WIDTH - 1):0] current_v_min;
+logic [(V_COUNTER_WIDTH - 1):0] current_v_max;
+
 logic [(H_COUNTER_WIDTH - 1):0] current_h;
+logic [(H_COUNTER_WIDTH - 1):0] current_h_max;
 
 e_cycle_type next_cycle;
 logic [(V_COUNTER_WIDTH - 1):0] next_v;
+
+logic [(V_COUNTER_WIDTH - 1):0] next_v_min;
+logic [(V_COUNTER_WIDTH - 1):0] next_v_max;
+
 logic [(H_COUNTER_WIDTH - 1):0] next_h;
+logic [(H_COUNTER_WIDTH - 1):0] next_h_max;
+
+logic [7:0] current_color;
+logic [7:0] next_color;
 
 logic next_vram_we;
 logic [9:0] next_vram_addr;
@@ -86,14 +102,62 @@ logic next_vram_odd_we;
 logic [9:0] next_vram_odd_addr;
 logic [7:0] next_vram_odd_d;
 
+logic [9:0] next_cbram_addr = 0;
+
 always_comb begin
-    if (current_cycle == PIXEL) begin
+    next_h_max = current_h_max;
+    next_v_max = current_v_max;
+    next_v_min = current_v_min;
+    next_color = current_color;
+    next_cbram_addr = cbram_addr;
+
+    if (current_cycle == FETCH_X) begin
+        next_cbram_addr = next_cbram_addr + 1;
+        next_vram_we = 1'b0;
+        next_vram_addr = 10'b0;
+        next_vram_d = 8'b0;
+        next_v = current_v;
+        next_h = current_h;
+        if (next_cbram_addr == 99) begin
+            next_cycle = HALT;
+        end
+        else begin
+            next_cycle = FETCH_Y;
+        end
+    end
+    else if (current_cycle == FETCH_Y) begin
+        next_cbram_addr = next_cbram_addr + 1;
+        next_vram_we = 1'b0;
+        next_vram_addr = 10'b0;
+        next_vram_d = 8'b0;
+        next_v = current_v;
+        next_h = cbram_q * 3;
+        next_h_max = next_h + 32;
+        next_cycle = POST_FETCH;
+    end
+    else if (current_cycle == POST_FETCH) begin
+        next_vram_we = 1'b0;
+        next_vram_addr = 10'b0;
+        next_vram_d = 8'b0;
+        next_v = current_v;
+        next_v_min = cbram_q * 3;
+        next_v_max = next_v_min + 32;
+        if (current_v <= next_v_max && current_v >= next_v_min) begin
+            next_cycle = PIXEL;
+        end
+        else begin
+            next_cycle = FETCH_X;
+        end
+        next_h = current_h;
+        next_color = 8'b11111111;
+    end
+    else if (current_cycle == PIXEL) begin
         next_vram_we = 1'b1;
         next_vram_addr = current_h;
-        next_vram_d = (current_h + current_v + frame_no <= 333 && current_h + current_v + frame_no >= 111 ? 8'b11111111 : 8'b0000000);
-        if (current_h == 500) begin
-            next_cycle = HALT;
-            next_h = 500;
+        next_vram_d = current_color;
+        if (current_h == current_h_max) begin
+            next_cycle = FETCH_X;
+            next_h = H_PIXELS;
             next_v = current_v;
         end
         else begin
@@ -112,15 +176,15 @@ always_comb begin
     end
     
     if (!next_vram_we) begin
-        next_vram_even_we = 1'b0;
-        next_vram_odd_we = 1'b0;
+      next_vram_even_we = 1'b0;
+      next_vram_odd_we = 1'b0;
              
       next_vram_even_addr = 0;
       next_vram_even_d = 0;
       next_vram_odd_addr = 0;
       next_vram_odd_d = 0;
     end
-    else if (scanline_parity) begin
+    else if (!scanline_parity) begin
       next_vram_even_we = 1'b1;
       next_vram_odd_we = 1'b0;
         
@@ -141,7 +205,7 @@ always_comb begin
 end
 
 always_ff @(posedge clk) begin
-    if (next_v != counter_v) begin
+    if (counter_h == 0/*current_v != counter_v*/) begin
         vram_even_we <= 1'b0;
         vram_odd_we <= 1'b0;
         vram_even_addr <= 0;
@@ -151,6 +215,11 @@ always_ff @(posedge clk) begin
         current_cycle <= PIXEL;
         current_v <= counter_v;
         current_h <= 0;
+        current_h_max <= 800;
+        current_v_max <= 600;
+        current_v_min <= 0;
+        current_color <= 55;
+        cbram_addr <= 0;
     end
     else begin
         vram_even_we <= next_vram_even_we;
@@ -162,6 +231,11 @@ always_ff @(posedge clk) begin
         current_cycle <= next_cycle;
         current_v <= next_v;
         current_h <= next_h;
+        current_h_max <= next_h_max;
+        current_v_max <= next_v_max;
+        current_v_min <= next_v_min;
+        current_color <= next_color;
+        cbram_addr <= next_cbram_addr;
     end
 end
 
